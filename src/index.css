@@ -1,0 +1,14 @@
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  font-family: sans-serif;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  transform: scale(1.05);
+}
