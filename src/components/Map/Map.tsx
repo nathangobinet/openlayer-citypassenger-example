@@ -1,10 +1,12 @@
-import React, { CSSProperties, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { CSSProperties, useEffect, useRef } from 'react';
+import CustomMap from './CustomMap';
+import { Coordinate } from 'ol/coordinate';
+import { useCheckpoint } from '../../context/CheckpointContext';
+import { useMap, useRegisterMap } from '../../context/MapContext';
+import { useAppMode } from '../../context/ModeContext';
+import { useJourney } from '../../context/JourneyContext';
 
 import 'ol/ol.css';
-
-import CustomMap from './CustomMap';
-import { Step } from '../../App';
-import { Coordinate } from 'ol/coordinate';
 
 const mapContainerStyle: CSSProperties = {
   height: '100vh',
@@ -20,20 +22,16 @@ const cursorStyle: CSSProperties = {
   pointerEvents: 'none',
 };
 
-export interface ForwardMap {
-  getCenter(): Coordinate | undefined,
-}
-
 interface MapSpec {
   searchLocation: Coordinate | undefined,
-  steps: Step[],
-  selectedStep: Step | undefined,
-  setSelectedStep: React.Dispatch<React.SetStateAction<Step | undefined>>,
 }
 
-const Map = forwardRef<ForwardMap, MapSpec>((props, ref) => {
-  const { searchLocation, steps, selectedStep, setSelectedStep } = props;
-  const [map, setMap] = useState<CustomMap>();
+function Map({ searchLocation }: MapSpec) {
+  const map = useMap();
+  const registerMap = useRegisterMap();
+  const { appMode } = useAppMode();
+  const { checkpoints, selectedCheckpoint } = useCheckpoint();
+  const { selectedJourney, selectedJourneyCheckpoints } = useJourney();
   const mapRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
 
@@ -45,10 +43,9 @@ const Map = forwardRef<ForwardMap, MapSpec>((props, ref) => {
     const newMap = new CustomMap({
       mapElement: mapRef.current,
       cursorElement: cursorRef.current,
-      setSelectedStep: setSelectedStep,
-      steps,
+      checkpoints,
     });
-    setMap(newMap);
+    registerMap(newMap);
 
     return () => newMap.destroy();
   }, []);
@@ -60,17 +57,23 @@ const Map = forwardRef<ForwardMap, MapSpec>((props, ref) => {
   }, [searchLocation]);
 
   useEffect(() => {
-    map?.updateSteps(steps);
-  }, [steps]);
+    map?.updateCheckpoints(checkpoints);
+  }, [checkpoints]);
+
+  const handleJourney = () => {
+    map?.updateSelectedJourney(selectedJourneyCheckpoints, selectedJourney.color);
+  }
+
+  const handleCheckpoints = () => {
+    const index = checkpoints.findIndex((checkpoint) => checkpoint === selectedCheckpoint);
+    map?.changeSelectedCheckpoint(index);
+  }
 
   useEffect(() => {
-    const index = steps.findIndex((step) => step === selectedStep);
-    map?.changeSelectedStep(index);
-  }, [selectedStep]);
-
-  useImperativeHandle(ref, () => ({
-    getCenter: () => map?.getCenter(),
-  }));
+    map?.clearAddtionalStyles();
+    if (appMode === 'checkpoint') handleCheckpoints();
+    if (appMode === 'journey') handleJourney();
+  }, [selectedCheckpoint, selectedJourney, appMode]);
 
   return (
     <>
@@ -82,6 +85,6 @@ const Map = forwardRef<ForwardMap, MapSpec>((props, ref) => {
       </div>
     </>
   );
-});
+};
 
 export default Map;
